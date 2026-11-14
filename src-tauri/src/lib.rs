@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::ffi::OsStr;
 use sysinfo::{ProcessesToUpdate, System};
+use std::collections::HashMap;
 
 #[derive(serde::Serialize)]
     struct ProcessRuntime {
@@ -11,21 +12,28 @@ use sysinfo::{ProcessesToUpdate, System};
     }
 
 #[tauri::command]
-    fn get_software_runtime() -> Vec<ProcessRuntime> {
-        
-        const TARGET_SOFTWARE: &str = "sai2.exe";
-        let mut sys = System::new();
-        sys.refresh_processes(ProcessesToUpdate::All, true);
+    fn get_software_runtime(process_names: Vec<String>) -> HashMap<String, Vec<ProcessRuntime>> {
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
 
-        sys.processes_by_exact_name(OsStr::new(TARGET_SOFTWARE))
+    let mut results = HashMap::new();
+
+    for name in process_names {
+        let instances: Vec<ProcessRuntime> = sys
+            .processes_by_exact_name(OsStr::new(&name))
             .map(|process| ProcessRuntime {
                 pid: process.pid().as_u32(),
                 name: process.name().to_string_lossy().into_owned(),
                 run_time_seconds: process.run_time(),
                 start_time_epoch: process.start_time(),
             })
-            .collect()
+            .collect();
+
+        results.insert(name, instances);
     }
+
+    results
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
